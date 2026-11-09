@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+usage() {
+    cat <<EOF
+Usage: git ditch [-f|--force] [-h|--help]
+
+Delete the current branch and switch back to the previous one.
+
+Options:
+  -f, --force    Force delete the branch even if unmerged (equivalent to git branch -D)
+  -h, --help     Show this help message
+EOF
+}
+
+force=0
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -f|--force)
+            force=1
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "git ditch: unrecognized argument '$1'" >&2
+            usage >&2
+            exit 1
+            ;;
+    esac
+done
+
+# 1. Capture current branch name
+old_branch=$(git symbolic-ref --short -q HEAD || true)
+if [ -z "$old_branch" ]; then
+    echo "git ditch: Error: Not currently on a branch (detached HEAD)." >&2
+    exit 1
+fi
+
+# 2. Switch back to previous branch
+if ! git switch -q -; then
+    echo "git ditch: Error: Failed to switch to previous branch. Aborting." >&2
+    exit 1
+fi
+
+# 3. Capture new current branch name
+new_branch=$(git symbolic-ref --short -q HEAD || true)
+
+# 4 & 5. Delete old branch (force or safe)
+if [ "$force" -eq 1 ]; then
+    git branch -D "$old_branch"
+else
+    # 6. Safe delete; rollback and warn if unmerged
+    if ! git branch -d "$old_branch" 2>/dev/null; then
+        echo "git ditch: Branch '$old_branch' is not fully merged." >&2
+        echo "Use 'git ditch -f' to force delete." >&2
+        echo "Switching back to '$old_branch'..." >&2
+        git switch -q "$old_branch"
+        exit 1
+    fi
+fi

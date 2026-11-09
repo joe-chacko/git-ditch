@@ -1,0 +1,13 @@
+#compdef git-ditch git-ditch=git\ ditch
+
+_git_ditch() {
+    _arguments \
+        '(-f --force)'{-f,--force}'[Force delete branch even if unmerged]' \
+        '(-h --help)'{-h,--help}'[Display help message]'
+}
+
+_git-ditch() {
+    _git_ditch "$@"
+}
+
+_git_ditch "$@"
